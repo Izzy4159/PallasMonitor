@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PALLAS Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+SC:wght@300;400;500&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <!-- Frameless window title bar -->
+  <div class="titlebar" id="titlebar">
+    <div class="titlebar-left">
+      <span class="titlebar-logo">◈</span>
+      <span class="titlebar-name">PALLAS MONITOR</span>
+    </div>
+    <div class="titlebar-controls">
+      <button class="tb-btn tb-min" onclick="tbMinimize()" title="Minimize">─</button>
+      <button class="tb-btn tb-max" onclick="tbMaximize()" title="Maximize">□</button>
+      <button class="tb-btn tb-close" onclick="tbClose()" title="Close">✕</button>
+    </div>
+  </div>
+
+  <div class="app">
+
+    <header class="header">
+      <div class="header-left">
+        <h1 class="header-title">PALLAS</h1>
+        <p class="header-sub">SYSTEM MONITOR</p>
+      </div>
+      <div class="header-right">
+        <div class="zoom-controls">
+          <button class="zoom-btn" id="zoom-out" title="Zoom Out (Ctrl+-)">−</button>
+          <span class="zoom-level" id="zoom-level">125%</span>
+          <button class="zoom-btn" id="zoom-in" title="Zoom In (Ctrl+=)">+</button>
+        </div>
+        <div class="live-indicator">
+          <span class="live-dot"></span>
+          <span class="live-label">LIVE</span>
+        </div>
+        <span class="last-update" id="last-update">—</span>
+      </div>
+    </header>
+
+    <main class="dashboard">
+
+      <!-- CPU -->
+      <div class="card" id="card-cpu">
+        <div class="card-head">
+          <span class="card-title">PROCESSOR</span>
+          <span class="card-meta" id="cpu-meta">—</span>
+        </div>
+        <div class="card-body">
+          <div class="primary-row">
+            <span class="big-num" id="cpu-percent">—</span>
+            <span class="big-unit">%</span>
+          </div>
+
+          <div class="kv-grid">
+            <div class="kv">
+              <span class="kv-label">FREQ</span>
+              <span class="kv-value" id="cpu-freq">—</span>
+              <span class="kv-unit">GHz</span>
+            </div>
+            <div class="kv">
+              <span class="kv-label">TEMP</span>
+              <span class="kv-value" id="cpu-temp">—</span>
+              <span class="kv-unit">°C</span>
+            </div>
+          </div>
+
+          <div class="section-label">PER CORE</div>
+          <div class="core-grid" id="cpu-cores"></div>
+
+          <canvas class="sparkline" id="spark-cpu"></canvas>
+        </div>
+      </div>
+
+      <!-- RAM -->
+      <div class="card" id="card-ram">
+        <div class="card-head">
+          <span class="card-title">MEMORY</span>
+          <span class="card-meta" id="ram-meta">—</span>
+        </div>
+        <div class="card-body">
+          <div class="primary-row">
+            <span class="big-num" id="ram-percent">—</span>
+            <span class="big-unit">%</span>
+          </div>
+
+          <div class="kv-grid">
+            <div class="kv">
+              <span class="kv-label">USED</span>
+              <span class="kv-value" id="ram-used">—</span>
+              <span class="kv-unit">GB</span>
+            </div>
+            <div class="kv">
+              <span class="kv-label">FREE</span>
+              <span class="kv-value" id="ram-free">—</span>
+              <span class="kv-unit">GB</span>
+            </div>
+          </div>
+
+          <div class="thin-bar-wrap">
+            <div class="thin-bar">
+              <div class="thin-bar-fill" id="ram-bar"></div>
+            </div>
+          </div>
+
+          <canvas class="sparkline" id="spark-ram"></canvas>
+        </div>
+      </div>
+
+      <!-- GPU -->
+      <div class="card" id="card-gpu">
+        <div class="card-head">
+          <span class="card-title">GPU</span>
+          <span class="card-meta" id="gpu-name">—</span>
+        </div>
+        <div class="card-body">
+          <div class="primary-row">
+            <span class="big-num" id="gpu-load">—</span>
+            <span class="big-unit">%</span>
+          </div>
+
+          <div class="kv-grid">
+            <div class="kv">
+              <span class="kv-label">VRAM</span>
+              <span class="kv-value kv-value--sm" id="gpu-vram">— / —</span>
+              <span class="kv-unit">GB</span>
+            </div>
+            <div class="kv">
+              <span class="kv-label">TEMP</span>
+              <span class="kv-value" id="gpu-temp">—</span>
+              <span class="kv-unit">°C</span>
+            </div>
+          </div>
+
+          <div class="kv-grid">
+            <div class="kv">
+              <span class="kv-label">CORE CLK</span>
+              <span class="kv-value" id="gpu-clock">—</span>
+              <span class="kv-unit">MHz</span>
+            </div>
+            <div class="kv">
+              <span class="kv-label">MEM CLK</span>
+              <span class="kv-value" id="gpu-mclock">—</span>
+              <span class="kv-unit">MHz</span>
+            </div>
+          </div>
+
+          <canvas class="sparkline" id="spark-gpu"></canvas>
+        </div>
+      </div>
+
+      <!-- Fans -->
+      <div class="card" id="card-fans">
+        <div class="card-head">
+          <span class="card-title">COOLING</span>
+          <span class="card-meta" id="fans-meta"></span>
+        </div>
+        <div class="card-body">
+          <div class="fan-list" id="fan-list">
+            <div class="no-data">
+              No fan sensors detected.<br>
+              <small>Run LibreHardwareMonitor for fan &amp; temp data.</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Disk -->
+      <div class="card" id="card-disk">
+        <div class="card-head">
+          <span class="card-title">STORAGE</span>
+        </div>
+        <div class="card-body">
+          <div class="kv-grid" style="margin-bottom:20px">
+            <div class="kv">
+              <span class="kv-label">READ</span>
+              <span class="kv-value" id="disk-read">—</span>
+              <span class="kv-unit">MB/s</span>
+            </div>
+            <div class="kv">
+              <span class="kv-label">WRITE</span>
+              <span class="kv-value" id="disk-write">—</span>
+              <span class="kv-unit">MB/s</span>
+            </div>
+          </div>
+          <div class="section-label">DRIVES</div>
+          <div class="drive-list" id="drive-list"></div>
+        </div>
+      </div>
+
+      <!-- Network -->
+      <div class="card" id="card-network">
+        <div class="card-head">
+          <span class="card-title">NETWORK</span>
+        </div>
+        <div class="card-body">
+          <div class="net-row">
+            <div class="net-half">
+              <span class="net-arrow up">↑</span>
+              <div>
+                <span class="big-num big-num--md" id="net-up">—</span>
+                <span class="big-unit">MB/s</span>
+                <div class="kv-label" style="margin-top:2px">UPLOAD</div>
+              </div>
+            </div>
+            <div class="net-divider"></div>
+            <div class="net-half">
+              <span class="net-arrow down">↓</span>
+              <div>
+                <span class="big-num big-num--md" id="net-down">—</span>
+                <span class="big-unit">MB/s</span>
+                <div class="kv-label" style="margin-top:2px">DOWNLOAD</div>
+              </div>
+            </div>
+          </div>
+
+          <canvas class="sparkline" id="spark-net"></canvas>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
