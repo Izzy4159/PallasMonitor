@@ -9,19 +9,39 @@ app = Flask(__name__)
 # ── Shared delta-calculation state ─────────────────────────────
 _lock = threading.Lock()
 _state: dict = {
-    'prev_disk': None,
-    'prev_net':  None,
-    'prev_time': None,
+    'prev_disk':           None,
+    'prev_net':            None,
+    'prev_time':           None,
+    'cpu_percent':         0.0,
+    'cpu_percent_percpu':  [],
 }
+
+
+# ── CPU background sampler ─────────────────────────────────────
+
+def _cpu_sampler():
+    # Prime both counters so the first real sample has a valid baseline.
+    psutil.cpu_percent(interval=None)
+    psutil.cpu_percent(interval=None, percpu=True)
+    while True:
+        time.sleep(1.0)
+        pct      = psutil.cpu_percent(interval=None)
+        per_core = psutil.cpu_percent(interval=None, percpu=True)
+        with _lock:
+            _state['cpu_percent']        = pct
+            _state['cpu_percent_percpu'] = per_core
 
 
 # ── CPU ────────────────────────────────────────────────────────
 
 def _get_cpu():
     freq = psutil.cpu_freq()
+    with _lock:
+        pct      = _state['cpu_percent']
+        per_core = list(_state['cpu_percent_percpu'])
     return {
-        'percent':       psutil.cpu_percent(interval=None),
-        'per_core':      psutil.cpu_percent(interval=None, percpu=True),
+        'percent':       pct,
+        'per_core':      per_core,
         'freq_ghz':      round(freq.current / 1000, 2) if freq else None,
         'freq_max_ghz':  round(freq.max     / 1000, 2) if freq else None,
         'temperature':   _get_cpu_temp(),
@@ -247,9 +267,7 @@ def api_stats():
 # ── Entry point ────────────────────────────────────────────────
 
 if __name__ == '__main__':
-    psutil.cpu_percent(interval=None)
-    psutil.cpu_percent(interval=None, percpu=True)
-    time.sleep(0.15)
+    threading.Thread(target=_cpu_sampler, daemon=True).start()
 
     with _lock:
         _state['prev_disk'] = psutil.disk_io_counters()
