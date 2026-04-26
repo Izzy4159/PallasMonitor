@@ -51,11 +51,20 @@ document.addEventListener('keydown', e => {
 
 applyZoom(currentZoom);
 
-// ── Window Controls (pywebview) ────────────────────────────────
+// ── Window Controls ────────────────────────────────────────────
 
-function tbMinimize() { if (window.pywebview) window.pywebview.api.minimize(); }
-function tbMaximize() { if (window.pywebview) window.pywebview.api.toggle_maximize(); }
-function tbClose()    { if (window.pywebview) window.pywebview.api.close(); }
+function tbMinimize() {
+  if (window.electronAPI) window.electronAPI.minimize();
+  else if (window.pywebview) window.pywebview.api.minimize();
+}
+function tbMaximize() {
+  if (window.electronAPI) window.electronAPI.toggleMaximize();
+  else if (window.pywebview) window.pywebview.api.toggle_maximize();
+}
+function tbClose() {
+  if (window.electronAPI) window.electronAPI.close();
+  else if (window.pywebview) window.pywebview.api.close();
+}
 
 // ── Utility helpers ────────────────────────────────────────────
 

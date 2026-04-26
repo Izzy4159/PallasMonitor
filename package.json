@@ -1,0 +1,12 @@
+{
+  "name": "pallas-monitor",
+  "version": "1.0.0",
+  "description": "Desktop system monitor",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^41.3.0"
+  }
+}

@@ -1,18 +1,17 @@
 @echo off
-:: Launch PALLAS Monitor as a desktop app (pywebview window)
+:: Launch PALLAS Monitor as a frameless Electron desktop window
 cd /d "%~dp0"
 
-set PYTHON=
-for %%P in (py python python3) do (
-    where %%P >nul 2>&1
-    if errorlevel 1 (goto :next_%%P)
-    set PYTHON=%%P
-    goto :found
-    :next_%%P
+where npm >nul 2>&1
+if errorlevel 1 (
+    echo Node.js not found. Please install from https://nodejs.org
+    pause
+    exit /b 1
 )
-echo Python not found. Please install Python 3.10+ and add it to PATH.
-pause
-exit /b 1
 
-:found
-start "" /B %PYTHON% "%~dp0app.py"
+if not exist "%~dp0node_modules\" (
+    echo Installing dependencies...
+    npm install
+)
+
+start "" /B npm start
