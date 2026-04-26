@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # PALLAS Monitor
 
 A real-time system monitor for Windows — CPU, RAM, GPU, cooling, storage, and network — running as a standalone native desktop window built on Flask + pywebview.
@@ -112,7 +111,3 @@ PallasMonitor/
     ├── css/style.css
     └── js/app.js
 ```
-=======
-# PallasMonitor
-Desktop system monitor — CPU, GPU, RAM, fans, disk, network
->>>>>>> ed6e6051ef0210a004834a7a3315cff9f21b4e8e
