@@ -70,19 +70,53 @@ All preferences are stored in browser `localStorage` and restored on next launch
 
 ## CPU Temperature
 
-Temperature is auto-detected by trying sources in this order:
+Temperature is auto-detected by trying six sources in order. Every attempt prints its result to the console so you can see exactly which source is working.
 
-1. **psutil** `sensors_temperatures()` — works natively on Linux; returns empty on Windows
-2. **WMI LibreHardwareMonitor** `root\LibreHardwareMonitor` — best Windows source; requires LHM running in the background
-3. **WMI OpenHardwareMonitor** `root\OpenHardwareMonitor` — same pattern, older alternative
-4. **WMI MSAcpi** `MSAcpi_ThermalZoneTemperature` — standard Windows thermal zone (often returns package temp)
-5. **PowerShell CIM** `Get-CimInstance MSAcpi_ThermalZoneTemperature` — most reliable fallback, no extra software needed
+| # | Source | When it works |
+|---|--------|--------------|
+| 1 | `psutil.sensors_temperatures()` | Linux / Mac natively |
+| 2 | WMI `root\LibreHardwareMonitor` | Windows with LHM running |
+| 3 | WMI `root\OpenHardwareMonitor` | Windows with OHM running |
+| 4 | PowerShell `MSAcpi_ThermalZoneTemperature` | Most Windows 11 machines (no extra software) |
+| 5 | PowerShell `Win32_PerfFormattedData_Counters_ThermalZoneInformation` | Alternative Windows path |
+| 6 | Windows Registry thermal data | Last-ditch fallback |
 
-All sources are attempted in the background sampler thread so they never block the UI. Debug output is printed to the console so you can see which source is working.
+All sources run in the background sampler thread — they never block the UI or the API response.
 
-**Best results on Windows:** run [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) in the background. PALLAS picks up its WMI sensor data automatically and shows accurate per-sensor temperatures.
+**Debug endpoint:** visit `http://localhost:5000/api/temp_debug` while the app is running to trigger all sources in sequence and see the results in the console.
 
-Temperature colors: white (≤70°C) → orange (>70°C) → red (>85°C).
+**Best results on Windows:** run [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) in the background. PALLAS picks up its WMI sensor data automatically.
+
+Temperature colors: white (≤70°C) → orange (#f07030, >70°C) → red (#e84040, >85°C).
+
+---
+
+## Typography & Visual Design
+
+The dashboard is designed for instant at-a-glance readability:
+
+**Bold high-contrast values**
+- Primary metric numbers (CPU %, RAM %, GPU %) are rendered at 4rem / weight 900 with `letter-spacing: -1px` and `text-shadow: 0 0 24px currentColor` — they glow in their card's accent color
+- Stat row values (GHz, GB, MHz) use weight 700 and `--text-bright` (#f0f4ff) to stand out clearly against the dark background
+- Stat labels (FREQ, TEMP, USED) use weight 600 and tracked uppercase lettering in `--text-dim`
+
+**Per-card accent borders**  
+Each card has a 3 px left border in its unique accent color, making cards instantly identifiable at a glance even at peripheral vision.
+
+**Per-card glow colors**
+
+| Card | Accent | Glow |
+|------|--------|------|
+| PROCESSOR | `#ff4444` | Red |
+| MEMORY | `#4488ff` | Blue |
+| GPU | `#aa44ff` | Purple |
+| COOLING | `#ffcc00` | Yellow |
+| STORAGE | `#ff8800` | Orange |
+| NETWORK | `#00cccc` | Cyan |
+
+**Base font size:** 14 px default (was 12 px). Adjustable via the font-size slider (10–22 px).
+
+**Active settings buttons** (graph type, theme) use amber `#c8860a` to stand out clearly against the dark settings panel.
 
 ---
 

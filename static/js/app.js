@@ -233,8 +233,6 @@ function updateCPU(cpu) {
 
   document.getElementById('cpu-freq').textContent = cpu.freq_ghz ? f(cpu.freq_ghz, 2) : '—';
 
-  updateCpuTemp(cpu.temperature);
-
   const metaEl = document.getElementById('cpu-meta');
   if (cpu.count) metaEl.textContent = `${cpu.count}C / ${cpu.count_logical}T`;
 
@@ -402,7 +400,23 @@ async function poll() {
     updateDisk(data.disk);
     updateNetwork(data.network);
 
-    console.log('[PALLAS] CPU temp:', data.cpu.temperature, '°C  (temp_c:', data.cpu.temp_c, ')');
+    // ── CPU temperature display (bulletproof) ──────────────────
+    const tempVal = data.cpu && (data.cpu.temp_c ?? data.cpu.temperature ?? null);
+    console.log('[PALLAS] CPU temp from API:', tempVal, 'full cpu obj:', data.cpu);
+    const tempEl = document.getElementById('cpu-temp');
+    if (tempEl) {
+      if (tempVal !== null && tempVal !== undefined && !isNaN(tempVal)) {
+        tempEl.textContent = tempVal.toFixed(1);
+        if (tempVal > 85)      tempEl.style.color = '#e84040';
+        else if (tempVal > 70) tempEl.style.color = '#f07030';
+        else                   tempEl.style.color = '#ffffff';
+      } else {
+        tempEl.textContent = '—';
+        tempEl.style.color = '#6e7a94';
+      }
+    } else {
+      console.warn('[PALLAS] #cpu-temp element not found in DOM');
+    }
 
     const now = new Date();
     document.getElementById('last-update').textContent =

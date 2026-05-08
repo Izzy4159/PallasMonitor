@@ -33,8 +33,8 @@ def _cpu_sampler():
         per_core = psutil.cpu_percent(interval=None, percpu=True)
         temp     = _get_cpu_temp()
         _tick   += 1
-        if _tick % 10 == 0:
-            print(f'[PALLAS] tick={_tick} cpu={pct:.1f}% temp={temp}°C cores={len(per_core)}')
+        if _tick % 5 == 0:
+            print(f'[PALLAS] tick={_tick} cpu={pct:.1f}% temp={temp}')
         with _lock:
             _state['cpu_percent']        = pct
             _state['cpu_percent_percpu'] = per_core
@@ -62,78 +62,105 @@ def _get_cpu():
 
 
 def _get_cpu_temp():
-    # Source 1: psutil (works natively on Linux; empty on Windows)
-    print('[PALLAS] cpu_temp: trying psutil...')
+    # SOURCE 1: psutil (works on Linux/Mac, rarely Windows)
     try:
         temps = psutil.sensors_temperatures()
         if temps:
-            for key in ('coretemp', 'cpu_thermal', 'k10temp', 'zenpower'):
+            for key in ('coretemp', 'cpu_thermal', 'k10temp', 'zenpower', 'acpitz'):
                 if key in temps and temps[key]:
-                    val = round(temps[key][0].current, 1)
-                    print(f'[PALLAS] cpu_temp: psutil[{key}] → {val}°C')
+                    val = round(sum(r.current for r in temps[key]) / len(temps[key]), 1)
+                    print(f'[PALLAS] cpu_temp via psutil/{key}: {val}°C')
                     return val
-            for entries in temps.values():
-                if entries:
-                    val = round(entries[0].current, 1)
-                    print(f'[PALLAS] cpu_temp: psutil fallback → {val}°C')
-                    return val
-        else:
-            print('[PALLAS] cpu_temp: psutil returned empty (expected on Windows)')
-    except AttributeError:
-        print('[PALLAS] cpu_temp: psutil.sensors_temperatures not supported here')
-    except Exception as exc:
-        print(f'[PALLAS] cpu_temp: psutil error: {exc}')
+    except Exception as e:
+        print(f'[PALLAS] cpu_temp psutil failed: {e}')
 
-    # Source 2 & 3: WMI hardware monitor providers
-    for ns in (r'root\LibreHardwareMonitor', r'root\OpenHardwareMonitor'):
-        print(f'[PALLAS] cpu_temp: trying WMI {ns}...')
-        try:
-            import wmi
-            w = wmi.WMI(namespace=ns)
-            for s in w.Sensor():
-                if s.SensorType == 'Temperature' and 'CPU' in s.Name.upper():
-                    val = round(float(s.Value), 1)
-                    print(f'[PALLAS] cpu_temp: WMI {ns} sensor={s.Name} → {val}°C')
-                    return val
-            print(f'[PALLAS] cpu_temp: WMI {ns} — no CPU temp sensors found')
-        except Exception as exc:
-            print(f'[PALLAS] cpu_temp: WMI {ns} failed: {exc}')
-
-    # Source 4: WMI MSAcpi thermal zone
-    print('[PALLAS] cpu_temp: trying WMI root/wmi MSAcpi_ThermalZoneTemperature...')
+    # SOURCE 2: LibreHardwareMonitor WMI
     try:
         import wmi
-        w = wmi.WMI(namespace='root/wmi')
-        zones = w.MSAcpi_ThermalZoneTemperature()
-        if zones:
-            val = round(zones[0].CurrentTemperature / 10 - 273.15, 1)
-            print(f'[PALLAS] cpu_temp: WMI MSAcpi → {val}°C')
+        w = wmi.WMI(namespace=r'root\LibreHardwareMonitor')
+        vals = [float(s.Value) for s in w.Sensor()
+                if s.SensorType == 'Temperature' and 'CPU' in s.Name
+                and 'Package' in s.Name]
+        if not vals:
+            vals = [float(s.Value) for s in w.Sensor()
+                    if s.SensorType == 'Temperature' and 'CPU' in s.Name]
+        if vals:
+            val = round(sum(vals) / len(vals), 1)
+            print(f'[PALLAS] cpu_temp via LibreHardwareMonitor: {val}°C')
             return val
-        else:
-            print('[PALLAS] cpu_temp: WMI MSAcpi returned no zones')
-    except Exception as exc:
-        print(f'[PALLAS] cpu_temp: WMI MSAcpi failed: {exc}')
+    except Exception as e:
+        print(f'[PALLAS] cpu_temp LibreHardwareMonitor failed: {e}')
 
-    # Source 5: PowerShell CIM (most reliable Windows fallback, no extra software needed)
-    print('[PALLAS] cpu_temp: trying PowerShell CIM fallback...')
+    # SOURCE 3: OpenHardwareMonitor WMI
+    try:
+        import wmi
+        w = wmi.WMI(namespace=r'root\OpenHardwareMonitor')
+        vals = [float(s.Value) for s in w.Sensor()
+                if s.SensorType == 'Temperature' and 'CPU' in s.Name]
+        if vals:
+            val = round(sum(vals) / len(vals), 1)
+            print(f'[PALLAS] cpu_temp via OpenHardwareMonitor: {val}°C')
+            return val
+    except Exception as e:
+        print(f'[PALLAS] cpu_temp OpenHardwareMonitor failed: {e}')
+
+    # SOURCE 4: PowerShell MSAcpi_ThermalZoneTemperature (works on most Windows 11 machines)
     try:
         import subprocess
+        cmd = (
+            'Get-CimInstance -Namespace root/WMI '
+            '-ClassName MSAcpi_ThermalZoneTemperature '
+            '| Select-Object -ExpandProperty CurrentTemperature'
+        )
         result = subprocess.run(
-            ['powershell', '-NoProfile', '-NonInteractive', '-Command',
-             'Get-CimInstance -Namespace root/WMI -ClassName MSAcpi_ThermalZoneTemperature'
-             ' | Select-Object -ExpandProperty CurrentTemperature'],
+            ['powershell', '-NoProfile', '-NonInteractive', '-Command', cmd],
             capture_output=True, text=True, timeout=5,
         )
-        if result.returncode == 0 and result.stdout.strip():
-            raw = result.stdout.strip().splitlines()[0].strip()
-            val = round(float(raw) / 10.0 - 273.15, 1)
-            print(f'[PALLAS] cpu_temp: PowerShell CIM raw={raw} → {val}°C')
-            return val
-        print(f'[PALLAS] cpu_temp: PowerShell CIM no output (rc={result.returncode})')
-    except Exception as exc:
-        print(f'[PALLAS] cpu_temp: PowerShell CIM failed: {exc}')
+        lines = [l.strip() for l in result.stdout.strip().splitlines()
+                 if l.strip().lstrip('-').isdigit()]
+        if lines:
+            val = round(max(float(x) for x in lines) / 10.0 - 273.15, 1)
+            if 0 < val < 120:
+                print(f'[PALLAS] cpu_temp via MSAcpi PowerShell: {val}°C')
+                return val
+        print(f'[PALLAS] cpu_temp MSAcpi stdout: {repr(result.stdout)} stderr: {repr(result.stderr)}')
+    except Exception as e:
+        print(f'[PALLAS] cpu_temp MSAcpi PowerShell failed: {e}')
 
-    print('[PALLAS] cpu_temp: all sources failed — returning None')
+    # SOURCE 5: Win32_PerfFormattedData_Counters_ThermalZoneInformation
+    try:
+        import subprocess
+        cmd = (
+            'Get-CimInstance -ClassName Win32_PerfFormattedData_Counters_ThermalZoneInformation '
+            '| Select-Object -ExpandProperty Temperature'
+        )
+        result = subprocess.run(
+            ['powershell', '-NoProfile', '-NonInteractive', '-Command', cmd],
+            capture_output=True, text=True, timeout=5,
+        )
+        lines = [l.strip() for l in result.stdout.strip().splitlines()
+                 if l.strip().isdigit()]
+        if lines:
+            val = round(max(float(x) for x in lines) - 273.15, 1)
+            if 0 < val < 120:
+                print(f'[PALLAS] cpu_temp via ThermalZoneInformation: {val}°C')
+                return val
+    except Exception as e:
+        print(f'[PALLAS] cpu_temp ThermalZoneInformation failed: {e}')
+
+    # SOURCE 6: Windows Registry thermal data (last-ditch)
+    try:
+        import winreg
+        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,
+            r'SYSTEM\CurrentControlSet\Services\nvlddmkm\Parameters\Thermal')
+        val, _ = winreg.QueryValueEx(key, 'CPUTemperature')
+        if val and 0 < val < 120:
+            print(f'[PALLAS] cpu_temp via registry: {val}°C')
+            return float(val)
+    except Exception:
+        pass
+
+    print('[PALLAS] cpu_temp: ALL SOURCES FAILED — returning None')
     return None
 
 
@@ -315,6 +342,13 @@ def api_create_shortcut():
         return jsonify({'ok': True, 'path': lnk})
     except Exception as exc:
         return jsonify({'ok': False, 'error': str(exc)})
+
+
+@app.route('/api/temp_debug')
+def temp_debug():
+    """Hit in browser to run all temp sources and see console output."""
+    temp = _get_cpu_temp()
+    return jsonify({'temp_c': temp, 'message': 'check console for source details'})
 
 
 @app.route('/api/stats')
