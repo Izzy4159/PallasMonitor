@@ -1,17 +1,20 @@
 @echo off
-:: Launch PALLAS Monitor as a frameless Electron desktop window
 cd /d "%~dp0"
 
-where npm >nul 2>&1
-if errorlevel 1 (
-    echo Node.js not found. Please install from https://nodejs.org
-    pause
-    exit /b 1
+pip install pywebview --quiet 2>nul
+
+where pythonw >nul 2>&1
+if not errorlevel 1 (
+    start "" /B pythonw app.py
+    exit /b 0
 )
 
-if not exist "%~dp0node_modules\" (
-    echo Installing dependencies...
-    npm install
+where python >nul 2>&1
+if not errorlevel 1 (
+    python app.py
+    exit /b 0
 )
 
-start "" /B npm start
+echo Python not found. Please install from https://www.python.org
+pause
+exit /b 1

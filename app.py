@@ -1,7 +1,8 @@
 import time
 import threading
 import urllib.request
-from flask import Flask, render_template, jsonify
+import os
+from flask import Flask, render_template, jsonify, request
 import psutil
 
 app = Flask(__name__)
@@ -14,12 +15,15 @@ _state: dict = {
     'prev_time':           None,
     'cpu_percent':         0.0,
     'cpu_percent_percpu':  [],
+    'cpu_temp':            None,
 }
+_tick = 0
 
 
 # ── CPU background sampler ─────────────────────────────────────
 
 def _cpu_sampler():
+    global _tick
     # Prime both counters so the first real sample has a valid baseline.
     psutil.cpu_percent(interval=None)
     psutil.cpu_percent(interval=None, percpu=True)
@@ -27,9 +31,14 @@ def _cpu_sampler():
         time.sleep(1.0)
         pct      = psutil.cpu_percent(interval=None)
         per_core = psutil.cpu_percent(interval=None, percpu=True)
+        temp     = _get_cpu_temp()
+        _tick   += 1
+        if _tick % 10 == 0:
+            print(f'[PALLAS] tick={_tick} cpu={pct:.1f}% temp={temp}°C cores={len(per_core)}')
         with _lock:
             _state['cpu_percent']        = pct
             _state['cpu_percent_percpu'] = per_core
+            _state['cpu_temp']           = temp
 
 
 # ── CPU ────────────────────────────────────────────────────────
@@ -39,49 +48,92 @@ def _get_cpu():
     with _lock:
         pct      = _state['cpu_percent']
         per_core = list(_state['cpu_percent_percpu'])
+        temp     = _state['cpu_temp']
     return {
         'percent':       pct,
         'per_core':      per_core,
         'freq_ghz':      round(freq.current / 1000, 2) if freq else None,
         'freq_max_ghz':  round(freq.max     / 1000, 2) if freq else None,
-        'temperature':   _get_cpu_temp(),
+        'temperature':   temp,
+        'temp_c':        temp,
         'count':         psutil.cpu_count(logical=False),
         'count_logical': psutil.cpu_count(logical=True),
     }
 
 
 def _get_cpu_temp():
+    # Source 1: psutil (works natively on Linux; empty on Windows)
+    print('[PALLAS] cpu_temp: trying psutil...')
     try:
         temps = psutil.sensors_temperatures()
         if temps:
-            for key in ('coretemp', 'k10temp', 'cpu_thermal', 'acpitz'):
+            for key in ('coretemp', 'cpu_thermal', 'k10temp', 'zenpower'):
                 if key in temps and temps[key]:
-                    return round(temps[key][0].current, 1)
+                    val = round(temps[key][0].current, 1)
+                    print(f'[PALLAS] cpu_temp: psutil[{key}] → {val}°C')
+                    return val
             for entries in temps.values():
                 if entries:
-                    return round(entries[0].current, 1)
-    except (AttributeError, Exception):
-        pass
+                    val = round(entries[0].current, 1)
+                    print(f'[PALLAS] cpu_temp: psutil fallback → {val}°C')
+                    return val
+        else:
+            print('[PALLAS] cpu_temp: psutil returned empty (expected on Windows)')
+    except AttributeError:
+        print('[PALLAS] cpu_temp: psutil.sensors_temperatures not supported here')
+    except Exception as exc:
+        print(f'[PALLAS] cpu_temp: psutil error: {exc}')
 
-    for ns in (r'root\OpenHardwareMonitor', r'root\LibreHardwareMonitor'):
+    # Source 2 & 3: WMI hardware monitor providers
+    for ns in (r'root\LibreHardwareMonitor', r'root\OpenHardwareMonitor'):
+        print(f'[PALLAS] cpu_temp: trying WMI {ns}...')
         try:
             import wmi
             w = wmi.WMI(namespace=ns)
             for s in w.Sensor():
                 if s.SensorType == 'Temperature' and 'CPU' in s.Name.upper():
-                    return round(float(s.Value), 1)
-        except Exception:
-            continue
+                    val = round(float(s.Value), 1)
+                    print(f'[PALLAS] cpu_temp: WMI {ns} sensor={s.Name} → {val}°C')
+                    return val
+            print(f'[PALLAS] cpu_temp: WMI {ns} — no CPU temp sensors found')
+        except Exception as exc:
+            print(f'[PALLAS] cpu_temp: WMI {ns} failed: {exc}')
 
+    # Source 4: WMI MSAcpi thermal zone
+    print('[PALLAS] cpu_temp: trying WMI root/wmi MSAcpi_ThermalZoneTemperature...')
     try:
         import wmi
         w = wmi.WMI(namespace='root/wmi')
         zones = w.MSAcpi_ThermalZoneTemperature()
         if zones:
-            return round(zones[0].CurrentTemperature / 10 - 273.15, 1)
-    except Exception:
-        pass
+            val = round(zones[0].CurrentTemperature / 10 - 273.15, 1)
+            print(f'[PALLAS] cpu_temp: WMI MSAcpi → {val}°C')
+            return val
+        else:
+            print('[PALLAS] cpu_temp: WMI MSAcpi returned no zones')
+    except Exception as exc:
+        print(f'[PALLAS] cpu_temp: WMI MSAcpi failed: {exc}')
 
+    # Source 5: PowerShell CIM (most reliable Windows fallback, no extra software needed)
+    print('[PALLAS] cpu_temp: trying PowerShell CIM fallback...')
+    try:
+        import subprocess
+        result = subprocess.run(
+            ['powershell', '-NoProfile', '-NonInteractive', '-Command',
+             'Get-CimInstance -Namespace root/WMI -ClassName MSAcpi_ThermalZoneTemperature'
+             ' | Select-Object -ExpandProperty CurrentTemperature'],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            raw = result.stdout.strip().splitlines()[0].strip()
+            val = round(float(raw) / 10.0 - 273.15, 1)
+            print(f'[PALLAS] cpu_temp: PowerShell CIM raw={raw} → {val}°C')
+            return val
+        print(f'[PALLAS] cpu_temp: PowerShell CIM no output (rc={result.returncode})')
+    except Exception as exc:
+        print(f'[PALLAS] cpu_temp: PowerShell CIM failed: {exc}')
+
+    print('[PALLAS] cpu_temp: all sources failed — returning None')
     return None
 
 
@@ -236,6 +288,33 @@ def _get_network(prev_net, prev_time, now):
 @app.route('/')
 def index():
     return render_template('index.html')
+
+
+@app.route('/api/create_shortcut', methods=['POST'])
+def api_create_shortcut():
+    try:
+        data    = request.get_json(force=True) or {}
+        version = str(data.get('version', '1.0')).strip() or '1.0'
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+        bat     = os.path.join(app_dir, 'Launch PALLAS Monitor.bat')
+        desktop = os.path.join(os.path.expanduser('~'), 'Desktop')
+        lnk     = os.path.join(desktop, f'PALLAS Monitor v{version}.lnk')
+        ps = (
+            f'$ws = New-Object -ComObject WScript.Shell; '
+            f'$s = $ws.CreateShortcut("{lnk}"); '
+            f'$s.TargetPath = "{bat}"; '
+            f'$s.WorkingDirectory = "{app_dir}"; '
+            f'$s.WindowStyle = 7; '
+            f'$s.Save()'
+        )
+        import subprocess
+        subprocess.run(
+            ['powershell', '-NoProfile', '-NonInteractive', '-Command', ps],
+            check=True, capture_output=True, timeout=10,
+        )
+        return jsonify({'ok': True, 'path': lnk})
+    except Exception as exc:
+        return jsonify({'ok': False, 'error': str(exc)})
 
 
 @app.route('/api/stats')

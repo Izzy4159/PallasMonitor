@@ -15,9 +15,124 @@
       <span class="titlebar-name">PALLAS MONITOR</span>
     </div>
     <div class="titlebar-controls">
+      <button class="tb-btn" id="btn-settings" title="Settings">⚙</button>
       <button class="tb-btn tb-min" onclick="tbMinimize()" title="Minimize">─</button>
       <button class="tb-btn tb-max" onclick="tbMaximize()" title="Maximize">□</button>
       <button class="tb-btn tb-close" onclick="tbClose()" title="Close">✕</button>
+    </div>
+  </div>
+
+  <!-- Settings Panel -->
+  <div id="settings-panel" class="settings-panel hidden">
+    <div class="settings-header">
+      <span class="settings-title">SETTINGS</span>
+      <button class="settings-close" id="btn-settings-close">✕</button>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">FONT SIZE</div>
+      <div class="settings-row">
+        <input type="range" id="font-size-slider" min="10" max="22" step="1" value="12">
+        <span class="font-size-display" id="font-size-value">12px</span>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">GRAPH TYPES</div>
+
+      <div class="per-card-graph-row">
+        <span class="per-card-label">Processor</span>
+        <div class="btn-group" data-graph-target="cpu">
+          <button class="graph-type-btn active" data-type="line">Line</button>
+          <button class="graph-type-btn" data-type="area">Area</button>
+          <button class="graph-type-btn" data-type="bar">Bar</button>
+          <button class="graph-type-btn" data-type="step">Step</button>
+        </div>
+      </div>
+
+      <div class="per-card-graph-row">
+        <span class="per-card-label">Memory</span>
+        <div class="btn-group" data-graph-target="memory">
+          <button class="graph-type-btn active" data-type="line">Line</button>
+          <button class="graph-type-btn" data-type="area">Area</button>
+          <button class="graph-type-btn" data-type="bar">Bar</button>
+          <button class="graph-type-btn" data-type="step">Step</button>
+        </div>
+      </div>
+
+      <div class="per-card-graph-row">
+        <span class="per-card-label">GPU</span>
+        <div class="btn-group" data-graph-target="gpu">
+          <button class="graph-type-btn active" data-type="line">Line</button>
+          <button class="graph-type-btn" data-type="area">Area</button>
+          <button class="graph-type-btn" data-type="bar">Bar</button>
+          <button class="graph-type-btn" data-type="step">Step</button>
+        </div>
+      </div>
+
+      <div class="per-card-graph-row">
+        <span class="per-card-label">Storage</span>
+        <div class="btn-group" data-graph-target="storage">
+          <button class="graph-type-btn active" data-type="line">Line</button>
+          <button class="graph-type-btn" data-type="area">Area</button>
+          <button class="graph-type-btn" data-type="bar">Bar</button>
+          <button class="graph-type-btn" data-type="step">Step</button>
+        </div>
+      </div>
+
+      <div class="per-card-graph-row">
+        <span class="per-card-label">Network</span>
+        <div class="btn-group" data-graph-target="network">
+          <button class="graph-type-btn active" data-type="line">Line</button>
+          <button class="graph-type-btn" data-type="area">Area</button>
+          <button class="graph-type-btn" data-type="bar">Bar</button>
+          <button class="graph-type-btn" data-type="step">Step</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">THEME</div>
+      <div class="btn-group" id="theme-btns">
+        <button class="seg-btn active" data-theme="default">Default</button>
+        <button class="seg-btn" data-theme="ice">Ice</button>
+        <button class="seg-btn" data-theme="fire">Fire</button>
+        <button class="seg-btn" data-theme="mono">Mono</button>
+        <button class="seg-btn" data-theme="neon">Neon</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">CARD COLORS</div>
+      <div class="color-grid">
+        <label class="color-row"><span>CPU</span><input type="color" class="color-pick" data-card="cpu" value="#ff4444"></label>
+        <label class="color-row"><span>RAM</span><input type="color" class="color-pick" data-card="ram" value="#4488ff"></label>
+        <label class="color-row"><span>GPU</span><input type="color" class="color-pick" data-card="gpu" value="#aa44ff"></label>
+        <label class="color-row"><span>FANS</span><input type="color" class="color-pick" data-card="fans" value="#ffcc00"></label>
+        <label class="color-row"><span>DISK</span><input type="color" class="color-pick" data-card="disk" value="#ff8800"></label>
+        <label class="color-row"><span>NET</span><input type="color" class="color-pick" data-card="network" value="#00cccc"></label>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">CARD ORDER</div>
+      <ul id="card-order-list">
+        <li class="order-item" data-card="card-cpu" draggable="true">⠿ PROCESSOR</li>
+        <li class="order-item" data-card="card-ram" draggable="true">⠿ MEMORY</li>
+        <li class="order-item" data-card="card-gpu" draggable="true">⠿ GPU</li>
+        <li class="order-item" data-card="card-fans" draggable="true">⠿ COOLING</li>
+        <li class="order-item" data-card="card-disk" draggable="true">⠿ STORAGE</li>
+        <li class="order-item" data-card="card-network" draggable="true">⠿ NETWORK</li>
+      </ul>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">DESKTOP SHORTCUT</div>
+      <div class="shortcut-row">
+        <input type="text" id="shortcut-version" value="1.0" placeholder="version">
+        <button id="btn-make-shortcut">Create .lnk</button>
+      </div>
+      <div id="shortcut-status" class="shortcut-status"></div>
     </div>
   </div>
 

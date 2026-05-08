@@ -41,7 +41,7 @@ html, body {
   background: var(--bg);
   color: var(--text);
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  font-size: 12px;
+  font-size: var(--font-size, 12px);
   font-weight: 500;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -413,8 +413,22 @@ html, body {
 .sparkline {
   display: block;
   width: 100%;
-  flex: 1;
-  min-height: 100px;
+  height: 90px;
+  margin: 6px 0;
+}
+
+/* ── Range slider (fix drag in pywebview) ─────────────────── */
+input[type="range"] {
+  cursor: pointer;
+  pointer-events: auto;
+  width: 100%;
+}
+input[type="range"]::-webkit-slider-thumb {
+  cursor: grab;
+  pointer-events: auto;
+}
+input[type="range"]:active::-webkit-slider-thumb {
+  cursor: grabbing;
 }
 
 /* ── Fan List ─────────────────────────────────────────────── */
@@ -565,4 +579,342 @@ html, body {
   .app { padding: 20px 16px 32px; padding-top: calc(var(--titlebar-h) + 20px); }
   .dashboard { grid-template-columns: 1fr; }
   .header-title { font-size: 2.8rem; }
+}
+
+/* ── Themes ───────────────────────────────────────────────────── */
+
+html[data-theme="ice"] {
+  --bg:             #0d1b2a;
+  --card-bg:        #112233;
+  --border:         #1e3a55;
+  --border-hi:      #2a5070;
+  --text:           #e0f4ff;
+  --text-dim:       #90b8d8;
+  --text-muted:     #3a6080;
+  --accent:         #60d0ff;
+  --accent-cpu:     #00d4ff;
+  --accent-ram:     #40a8ff;
+  --accent-gpu:     #60c8ff;
+  --accent-fans:    #80e8ff;
+  --accent-disk:    #20b8e0;
+  --accent-network: #00ffee;
+}
+
+html[data-theme="fire"] {
+  --bg:             #1a0800;
+  --card-bg:        #241200;
+  --border:         #3d1800;
+  --border-hi:      #552200;
+  --text:           #fff0e0;
+  --text-dim:       #c8906a;
+  --text-muted:     #604030;
+  --accent:         #ff8844;
+  --accent-cpu:     #ff3300;
+  --accent-ram:     #ff6600;
+  --accent-gpu:     #ff9900;
+  --accent-fans:    #ffbb00;
+  --accent-disk:    #ff4400;
+  --accent-network: #ff7700;
+}
+
+html[data-theme="mono"] {
+  --bg:             #000000;
+  --card-bg:        #111111;
+  --border:         #222222;
+  --border-hi:      #333333;
+  --text:           #ffffff;
+  --text-dim:       #cccccc;
+  --text-muted:     #555555;
+  --accent:         #e0e0e0;
+  --accent-cpu:     #e0e0e0;
+  --accent-ram:     #e0e0e0;
+  --accent-gpu:     #e0e0e0;
+  --accent-fans:    #e0e0e0;
+  --accent-disk:    #e0e0e0;
+  --accent-network: #e0e0e0;
+}
+
+html[data-theme="neon"] {
+  --bg:             #050505;
+  --card-bg:        #0a0a0a;
+  --border:         #1a1a1a;
+  --border-hi:      #252525;
+  --text:           #f0f0f0;
+  --text-dim:       #a0a0a0;
+  --text-muted:     #404040;
+  --accent:         #ff003c;
+  --accent-cpu:     #ff003c;
+  --accent-ram:     #00ff9f;
+  --accent-gpu:     #bf00ff;
+  --accent-fans:    #ffee00;
+  --accent-disk:    #ff6600;
+  --accent-network: #00eeff;
+}
+
+/* ── Settings Panel ───────────────────────────────────────────── */
+
+.settings-panel {
+  position: fixed;
+  top: var(--titlebar-h);
+  right: 0;
+  width: 300px;
+  height: calc(100vh - var(--titlebar-h));
+  background: var(--card-bg);
+  border-left: 1px solid var(--border);
+  z-index: 999;
+  overflow-y: auto;
+  transform: translateX(0);
+  transition: transform 0.25s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-panel.hidden { transform: translateX(100%); }
+
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  background: var(--card-bg);
+  z-index: 1;
+}
+
+.settings-title {
+  font-size: 0.65rem;
+  letter-spacing: 0.28em;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
+.settings-close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.settings-close:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+
+.settings-section {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.settings-section-label {
+  font-size: 0.55rem;
+  letter-spacing: 0.25em;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  margin-bottom: 10px;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.font-size-display {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  min-width: 32px;
+  text-align: right;
+}
+
+/* ── Segmented button group ───────────────────────────────────── */
+.btn-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.seg-btn {
+  flex: 1;
+  min-width: 44px;
+  padding: 5px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  text-transform: uppercase;
+}
+
+.seg-btn:hover { background: var(--border); color: var(--text-dim); }
+
+.seg-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+}
+
+/* ── Color grid ───────────────────────────────────────────────── */
+.color-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.color-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.color-row span {
+  font-size: 0.58rem;
+  letter-spacing: 0.15em;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
+.color-pick {
+  width: 28px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+  background: transparent;
+}
+
+/* ── Card order list ──────────────────────────────────────────── */
+#card-order-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.order-item {
+  padding: 7px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 0.6rem;
+  letter-spacing: 0.15em;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  cursor: grab;
+  transition: background 0.15s;
+  user-select: none;
+}
+
+.order-item:hover  { background: var(--border); color: var(--text); }
+.order-item:active { cursor: grabbing; }
+
+/* ── Shortcut creator ─────────────────────────────────────────── */
+.shortcut-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.shortcut-row input[type="text"] {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  padding: 5px 8px;
+  border-radius: 3px;
+  outline: none;
+}
+
+.shortcut-row input[type="text"]:focus { border-color: var(--border-hi); }
+
+.shortcut-row button {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  padding: 5px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.shortcut-row button:hover { background: var(--border); color: var(--text); }
+
+.shortcut-status {
+  margin-top: 8px;
+  font-size: 0.58rem;
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  word-break: break-all;
+  min-height: 1em;
+}
+
+/* ── Per-card graph type rows ─────────────────────────────────── */
+.per-card-graph-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 8px;
+}
+
+.per-card-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  min-width: 64px;
+  flex-shrink: 0;
+}
+
+.per-card-graph-row .btn-group {
+  flex: 1;
+  display: flex;
+  gap: 3px;
+}
+
+.graph-type-btn {
+  flex: 1;
+  padding: 3px 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background 0.15s, color 0.15s;
+  text-transform: uppercase;
+}
+
+.graph-type-btn:hover { background: var(--border); color: var(--text-dim); }
+
+.graph-type-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
 }
